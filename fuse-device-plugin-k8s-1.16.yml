@@ -14,7 +14,7 @@ spec:
     spec:
       hostNetwork: true
       containers:
-      - image: soolaugust/fuse-device-plugin:v1.0
+      - image: fuse-device-plugin
         name: fuse-device-plugin-ctr
         securityContext:
           allowPrivilegeEscalation: false

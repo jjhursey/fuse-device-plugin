@@ -1,4 +1,4 @@
-FROM debian:stretch-slim
+FROM debian:stable-slim
 
 # fuse-device-plugin binary based on architecture
 ARG build_arch

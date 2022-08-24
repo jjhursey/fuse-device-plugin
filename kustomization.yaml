@@ -1,0 +1,12 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: kube-system
+
+images:
+- name: fuse-device-plugin
+  newName: docker.io/soolaugust/fuse-device-plugin
+  newTag: v1.1
+
+resources:
+- fuse-device-plugin-k8s-1.16.yml

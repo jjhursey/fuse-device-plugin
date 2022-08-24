@@ -1,5 +1,5 @@
 # Multi architecture builds
-TARGETS = amd64 arm64
+TARGETS = amd64 arm64 ppc64le
 PLATFORM = linux
 BUILD_TARGETS = $(TARGETS:=.build)
 BUILD_CI_TARGETS = $(TARGETS:=.docker)
@@ -9,7 +9,7 @@ MANIFEST_PUSH_TARGETS = $(PLATFORM:=.push-manifest)
 BUILD_OPT=""
 IMAGE_TAG=v1.1
 IMAGE_PREFIX=fuse-device-plugin
-IMAGE_REGISTRY=docker.io/soolaugust
+IMAGE_REGISTRY ?= docker.io/soolaugust
 BINARY=fuse-device-plugin
 
 
@@ -37,13 +37,15 @@ push-image: $(IMAGE_PUSH_TARGETS)
 %.push-image:
 	TARGET=$(*) docker push $(IMAGE_REGISTRY)/$(IMAGE_PREFIX):build-$(*)-${IMAGE_TAG}
 
-# Create docker manifest for amd64 and arm64
+# Create docker manifest for the targets
 PHONY: create-manifest $(MANIFEST_CREATE_TARGETS)
 create-manifest: $(MANIFEST_CREATE_TARGETS)
 %.create-manifest:
-	docker manifest create $(IMAGE_REGISTRY)/$(IMAGE_PREFIX):${IMAGE_TAG} -a $(IMAGE_REGISTRY)/$(IMAGE_PREFIX):build-amd64-${IMAGE_TAG} -a $(IMAGE_REGISTRY)/$(IMAGE_PREFIX):build-arm64-${IMAGE_TAG}
-	docker manifest annotate --arch amd64 $(IMAGE_REGISTRY)/$(IMAGE_PREFIX):${IMAGE_TAG} $(IMAGE_REGISTRY)/$(IMAGE_PREFIX):build-amd64-${IMAGE_TAG}
-	docker manifest annotate --arch arm64 $(IMAGE_REGISTRY)/$(IMAGE_PREFIX):${IMAGE_TAG} $(IMAGE_REGISTRY)/$(IMAGE_PREFIX):build-arm64-${IMAGE_TAG}
+	docker manifest create $(IMAGE_REGISTRY)/$(IMAGE_PREFIX):${IMAGE_TAG} $(foreach target,$(TARGETS), \
+	-a $(IMAGE_REGISTRY)/$(IMAGE_PREFIX):build-$(target)-${IMAGE_TAG})
+	@$(foreach target,$(TARGETS), \
+	docker manifest annotate --arch $(target) $(IMAGE_REGISTRY)/$(IMAGE_PREFIX):${IMAGE_TAG} $(IMAGE_REGISTRY)/$(IMAGE_PREFIX):build-$(target)-${IMAGE_TAG} ; \
+	)
 
 # docker push manifest and inspect
 PHONY: push-manifest $(MANIFEST_PUSH_TARGETS)
@@ -51,3 +53,19 @@ push-manifest: $(MANIFEST_PUSH_TARGETS)
 %.push-manifest:
 	docker manifest push $(IMAGE_REGISTRY)/$(IMAGE_PREFIX):${IMAGE_TAG}
 	docker manifest inspect $(IMAGE_REGISTRY)/$(IMAGE_PREFIX):${IMAGE_TAG}
+
+# Deployment
+.PHONY: kustomize
+
+yamls: kustomize
+	kustomize edit set image fuse-device-plugin=$(IMAGE_REGISTRY)/$(IMAGE_PREFIX):${IMAGE_TAG}
+
+deploy: yamls
+	kustomize build . | kubectl apply -f -
+
+undeploy: yamls
+	kustomize build . | kubectl delete -f -
+
+KUSTOMIZE = $(shell pwd)/bin/kustomize
+kustomize: ## Download kustomize locally if necessary.
+	$(call go-get-tool,$(KUSTOMIZE),sigs.k8s.io/kustomize/kustomize/v3@v3.8.7)

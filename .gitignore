@@ -109,3 +109,7 @@ modules.xml
 .idea/sonarlint
 
 # End of https://www.gitignore.io/api/go,intellij+all
+
+fuse-device-plugin-linux-amd64
+fuse-device-plugin-linux-arm64
+fuse-device-plugin-linux-ppc64le
